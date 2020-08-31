@@ -110,7 +110,7 @@ of the last array.
 
 Why It's Good:
 - `O(1)` push/pop.
-- Cache locality inside of the sub-arrays is good.
+- Cache locality gets better the more elements you have.
 - Traversal from left to right should be only marginally slower than that of an array.
 - `O(log n)` indexing with fewer indirections than the "List Of Arrays".
 
@@ -176,6 +176,7 @@ sub-blocks. I suppose you could "double-amortize" it if you want, but meh.
 Why It's Good:
 - `O(1)` amortized push/pop.
 - `O(1)` indexing with 2 layers of indirection.
+- Cache locality gets better the more elements you have.
 
 Why It's Bad:
 - `O(n)` space wastage.
