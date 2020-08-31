@@ -28,7 +28,7 @@ Why It's Good:
 Why It's Bad:
 - `O(n)` push/pop because `realloc` may degrade to `malloc`+`memcpy`+`free` in general.
   * Adding `n` elements therefore takes `O(n^2)` time.
-    - Technically ["triangular time"](https://en.wikipedia.org/wiki/Triangular_number) but Big-O only cares about asymptotes/
+    - Technically ["triangular time"](https://en.wikipedia.org/wiki/Triangular_number) but Big-O only cares about asymptotes.
 
 Use statically sized arrays where you can, but they are awful as a dynamic
 collection.
