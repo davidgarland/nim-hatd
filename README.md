@@ -1,6 +1,6 @@
-# nim-hatd
+# nim-hats
 
-## Preloading size-doubling hashed array trees.
+## Hashed array trees.
 
 ...Which is a pretty bad misnomer, as there is no hashing involved.
 
