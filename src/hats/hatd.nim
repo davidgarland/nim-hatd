@@ -1,21 +1,22 @@
-#[
-## hatd.nim | Preloading size-doubling hashed array trees.
-## https://github.com/davidgarland/nim-hatd
-]#
+## A module implementing preloading size-doubling hashed array trees. The "D"
+## is mnemonic for "doubling", as the size of the sub-blocks do.
+##
+## https://github.com/davidgarland/nim-hats
 
-import nim-hats/private/ptrmath
+import private/ptrmath
 import bitops
 
 type
   HatD*[T] = object
-    l: ptr (ptr T) # The lower  superblock, used for shrinking.
-    m: ptr (ptr T) # The middle superblock.
-    h: ptr (ptr T) # The higher superblock, used for growing.
-    m_cap: int # The size of the middle superblock.
-    l_len: int # The number of slots occupied in the lower superblock.
-    m_len: int # The number of slots occupied in the middle superblock.
-    h_len: int # The number of slots occupied in the higher superblock.
-    len_p: int # The internal length field.
+    ## The type of prealoding size-doubling hashed array trees.
+    l: ptr (ptr T) ## The lower  superblock, used for shrinking.
+    m: ptr (ptr T) ## The middle superblock.
+    h: ptr (ptr T) ## The higher superblock, used for growing.
+    m_cap: int ## The size of the middle superblock.
+    l_len: int ## The number of slots occupied in the lower superblock.
+    m_len: int ## The number of slots occupied in the middle superblock.
+    h_len: int ## The number of slots occupied in the higher superblock.
+    len_p: int ## The internal length field.
 
 #[
 ## Utility
@@ -35,12 +36,15 @@ func locateD(i: int): (int, int) {.inline.} =
 ]#
 
 func len*[T](h: HatD[T]): int {.inline.} =
+  ## O(1). The length of the hashed array tree, in elements.
   result = h.len_p
 
 func high*[T](h: HatD[T]): int {.inline.} =
+  ## O(1). The index of the last element in a hashed array tree. Returns 1 if the length is zero.
   result = h.len_p - 1
 
 func low*[T](h: HatD[T]): int {.inline.} =
+  ## O(1). The index of the first element in a hashed array tree.
   result = 0
 
 #[
@@ -48,6 +52,7 @@ func low*[T](h: HatD[T]): int {.inline.} =
 ]#
 
 proc newHatD*[T]: HatD[T] =
+  ## O(1). Allocate a new hashed array tree.
   result.l = createU(ptr T, 1)
   result.m = createU(ptr T, 1)
   result.h = createU(ptr T, 2)
@@ -57,7 +62,7 @@ proc newHatD*[T]: HatD[T] =
 ## Move Semantics
 ]#
 
-proc `=destroy`*[T](h: var HatD[T]) =
+proc `=destroy`[T](h: var HatD[T]) =
   if likely(h.m != nil):
     dealloc(h.l)
     h.l = nil
@@ -70,7 +75,7 @@ proc `=destroy`*[T](h: var HatD[T]) =
     dealloc(h.m)
     h.m = nil
 
-proc `=`*[T](dest: var HatD[T]; source: HatD[T]) =
+proc `=`[T](dest: var HatD[T]; source: HatD[T]) =
   if dest.m != source.m:
     `=destroy`(dest)
     dest = newHatD[T]()
@@ -82,6 +87,7 @@ proc `=`*[T](dest: var HatD[T]; source: HatD[T]) =
 ]#
 
 proc `[]`*[T](h: HatD[T]; i: int): lent T {.inline.} =
+  ## O(1). Get an element from a hashed array tree at the given index.
   when not defined(danger):
     if unlikely(i >= h.len):
       raise newException(IndexDefect, "Out of bounds index read.")
@@ -89,6 +95,7 @@ proc `[]`*[T](h: HatD[T]; i: int): lent T {.inline.} =
   result = h.m[bi][si]
 
 proc `[]=`*[T](h: HatD[T]; i: int; e: sink T) {.inline.} =
+  ## O(1). Set an element in a hashed array tree at the given index.
   when not defined(danger):
     if unlikely(i >= h.len):
       raise newException(IndexDefect, "Out of bounds index write.")
@@ -100,6 +107,7 @@ proc `[]=`*[T](h: HatD[T]; i: int; e: sink T) {.inline.} =
 ]#
 
 proc add*[T](h: var HatD[T], e: sink T) =
+  ## O(1). Add an element onto the end of a hashed array tree.
   let (bi, si) = locateD h.len
   if unlikely(bi >= h.m_len):
     if unlikely(bi >= h.m_cap):
@@ -124,6 +132,7 @@ proc add*[T](h: var HatD[T], e: sink T) =
   inc h.len_p
 
 proc pop*[T](h: var HatD[T]): T =
+  ## O(1). Pop an element off the end of a hashed array tree.
   when not defined(danger):
     if unlikely(h.len < 1):
       raise newException(IndexDefect, "Out of bounds pop.")
@@ -155,6 +164,9 @@ proc pop*[T](h: var HatD[T]): T =
 ]#
 
 iterator items*[T](h: HatD[T]): lent T =
+  ## O(n). Iterate over the elements in a hashed array tree. This only
+  ## dereferences the sub-blocks once, making it more efficient than naively
+  ## looping with the `[]` operator.
   for i in 0 ..< h.m_len - 1:
     for j in 0 ..< 1 shl i:
       yield h.m[i][j]

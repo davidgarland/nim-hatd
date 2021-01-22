@@ -1,7 +1,7 @@
 import unittest
 import sequtils
-import hatd
-import hatc
+import hats/hatd
+import hats/hatc
 
 suite "HatD":
   var h: HatD[int]
