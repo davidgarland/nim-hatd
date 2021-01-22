@@ -1,13 +1,12 @@
 #[
-## hatd.nim | Preloading size-doubling hashed array trees.
+## hatc.nim | Preloading hashed array trees.
 ## https://github.com/davidgarland/nim-hatd
 ]#
 
 import nim-hats/private/ptrmath
-import bitops
 
 type
-  HatD*[T] = object
+  HatC*[T; S: static[int]] = object
     l: ptr (ptr T) # The lower  superblock, used for shrinking.
     m: ptr (ptr T) # The middle superblock.
     h: ptr (ptr T) # The higher superblock, used for growing.
@@ -18,36 +17,23 @@ type
     len_p: int # The internal length field.
 
 #[
-## Utility
-]#
-
-func fastNextPow2(x: int): int {.inline.} =
-  let c = int(x <= 1)
-  (c * 1) + ((1 - c) * (1 shl (fastLog2(x - 1) + 1)))
-
-func locateD(i: int): (int, int) {.inline.} =
-  let w = i + 1
-  let l = w.fastLog2
-  (l, w - (1 shl l))
-
-#[
 ## Fields
 ]#
 
-func len*[T](h: HatD[T]): int {.inline.} =
+func len*[T, S](h: HatC[T, S]): int {.inline.} =
   result = h.len_p
 
-func high*[T](h: HatD[T]): int {.inline.} =
+func high*[T, S](h: HatC[T, S]): int {.inline.} =
   result = h.len_p - 1
 
-func low*[T](h: HatD[T]): int {.inline.} =
+func low*[T, S](h: HatC[T, S]): int {.inline.} =
   result = 0
 
 #[
 ## Allocation
 ]#
 
-proc newHatD*[T]: HatD[T] =
+proc newHatC*[T, S]: HatC[T, S] =
   result.l = createU(ptr T, 1)
   result.m = createU(ptr T, 1)
   result.h = createU(ptr T, 2)
@@ -57,63 +43,67 @@ proc newHatD*[T]: HatD[T] =
 ## Move Semantics
 ]#
 
-proc `=destroy`*[T](h: var HatD[T]) =
+proc `=destroy`*[T, S](h: var HatC[T, S]) =
   if likely(h.m != nil):
     dealloc(h.l)
     h.l = nil
     dealloc(h.h)
     h.h = nil
     for i in 0 ..< h.m_len:
-      for j in 0 ..< (1 shl i):
+      for j in 0 ..< 100:
         `=destroy`(h.m[i][j])
       dealloc(h.m[i])
     dealloc(h.m)
     h.m = nil
 
-proc `=`*[T](dest: var HatD[T]; source: HatD[T]) =
+proc `=copy`*[T, S](dest: var HatC[T, S]; source: HatC[T, S]) =
   if dest.m != source.m:
     `=destroy`(dest)
-    dest = newHatD[T]()
+    dest = newHatC[T, S]()
     for x in source.items:
       dest.add(x)
+
+#[
+## Helper Functions
+]#
+
+func blockSiz[T, S](h: HatC[T, S]): int {.inline.} = 1 shl S
+func mask[T, S](h: HatC[T, S]): int {.inline.} = h.blockSiz - 1
 
 #[
 ## Accessors
 ]#
 
-proc `[]`*[T](h: HatD[T]; i: int): lent T {.inline.} =
+proc `[]`*[T, S](h: HatC[T, S]; i: int): lent T {.inline.} =
   when not defined(danger):
     if unlikely(i >= h.len):
       raise newException(IndexDefect, "Out of bounds index read.")
-  let (bi, si) = locateD i
-  result = h.m[bi][si]
+  result = h.m[i shr S][i and h.mask]
 
-proc `[]=`*[T](h: HatD[T]; i: int; e: sink T) {.inline.} =
+proc `[]=`*[T, S](h: HatC[T, S]; i: int; e: sink T) {.inline.} =
   when not defined(danger):
     if unlikely(i >= h.len):
       raise newException(IndexDefect, "Out of bounds index write.")
-  let (bi, si) = locateD i
-  h.m[bi][si] = e
+  h.m[i shr S][i and h.mask] = e
 
 #[
 ## Stack Operations
 ]#
 
-proc add*[T](h: var HatD[T], e: sink T) =
-  let (bi, si) = locateD h.len
+proc add*[T, S](h: var HatC[T, S]; e: sink T) =
+  let bi = h.len shr S
+  let si = h.len and h.mask
   if unlikely(bi >= h.m_len):
     if unlikely(bi >= h.m_cap):
       h.m_cap *= 2
       dealloc(h.l)
       h.l = h.m
-      h.l_len = h.m_len
+      h.l_Len = h.m_len
       h.m = h.h
       h.h = createU(ptr T, h.m_cap * 2)
       h.h_len = 0
-    
-    h.m[h.m_len] = createU(T, 1 shl h.m_len)
+    h.m[h.m_len] = createU(T, h.blockSiz)
     inc h.m_len
-    
     if likely(h.m_len - h.h_len > 0):
       h.h[h.h_len] = h.m[h.h_len]
       inc h.h_len
@@ -123,11 +113,12 @@ proc add*[T](h: var HatD[T], e: sink T) =
   h.m[bi][si] = e
   inc h.len_p
 
-proc pop*[T](h: var HatD[T]): T =
+proc pop*[T, S](h: var HatC[T, S]): T =
   when not defined(danger):
     if unlikely(h.len < 1):
       raise newException(IndexDefect, "Out of bounds pop.")
-  let (bi, si) = locateD (h.len - 1)
+  let bi = (h.len - 1) shr S
+  let si = (h.len - 1) and h.mask
   `=sink`(result, h.m[bi][si])
   if unlikely(bi < h.m_len - 1):
     dealloc(h.m[h.m_len - 1])
@@ -150,14 +141,10 @@ proc pop*[T](h: var HatD[T]): T =
       inc h.l_len
   dec h.len_p
 
-#[
-## Iterators
-]#
-
-iterator items*[T](h: HatD[T]): lent T =
+iterator items*[T, S](h: HatC[T, S]): lent T =
   for i in 0 ..< h.m_len - 1:
-    for j in 0 ..< 1 shl i:
+    for j in 0 ..< h.blockSiz:
       yield h.m[i][j]
   let c = h.m_len - 1
-  for j in 0 .. h.len - (fastNextPow2(h.len) div 2):
+  for j in 0 ..< (h.len and h.mask):
     yield h.m[c][j]

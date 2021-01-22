@@ -164,7 +164,7 @@ Why It's Bad:
 - `O(n)` space wastage.
 - Annoying and error prone to implement.
 
-I'd like to implement this as well soon.
+This is implemented as the `HatC[T]` type in this repo.
 
 ### Size Doubling Hashed Array Trees
 
@@ -196,7 +196,7 @@ Why It's Bad:
 - `O(n)` space wastage.
 - Annoying and error prone to implement.
 
-This is what this repo implements.
+This is implemented as the `HatD[T]` type in this repo.
 
 ### Optimal Hashed Array Trees
 
@@ -232,4 +232,4 @@ Why It's Bad:
 - Not as many elements will be contiguous as in a size doubling hashed array tree.
 - Annoying and error prone to implement.
 
-I'd like to try implementing this as well soon.
+I'd like to try implementing this as well soonTM.
