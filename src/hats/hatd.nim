@@ -146,11 +146,9 @@ proc pop*[T](h: var HatD[T]): T =
       h.h = h.m
       h.h_len = h.m_len
       h.m = h.l
-      h.m_len = h.l_len
       h.l = createU(ptr T, max(1, h.m_cap shr 1))
       h.l_len = 0
-    else:
-      dec h.m_len
+    dec h.m_len
     if likely(h.m_cap shr 1 > h.l_len):
       h.l[h.l_len] = h.m[h.l_len]
       inc h.l_len
