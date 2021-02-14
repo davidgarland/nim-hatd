@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.2.0"
 author        = "David Garland"
 description   = "Various kinds of hashed array trees."
 license       = "MIT"
